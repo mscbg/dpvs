@@ -1067,6 +1067,7 @@ static void register_stats_cb(void)
     memset(&mt, 0 , sizeof(mt));
     mt.type = MSG_TYPE_NEIGH_GET;
     mt.prio = MSG_PRIO_LOW;
+    mt.mode   = DPVS_MSG_MULTICAST;
     mt.unicast_msg_cb = get_neigh_uc_cb;
     mt.multicast_msg_cb = NULL;
     assert(msg_type_mc_register(&mt) == 0);
@@ -1078,6 +1079,7 @@ static void unregister_stats_cb(void)
     memset(&mt, 0, sizeof(mt));
     mt.type = MSG_TYPE_NEIGH_GET;
     mt.prio = MSG_PRIO_LOW;
+    mt.mode   = DPVS_MSG_MULTICAST;
     mt.unicast_msg_cb = get_neigh_uc_cb;
     mt.multicast_msg_cb = NULL;
     assert(msg_type_mc_unregister(&mt) == 0);
