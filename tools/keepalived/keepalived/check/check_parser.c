@@ -316,23 +316,50 @@ syn_proxy_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->syn_proxy = 1;
 }
+
+static void
+src_deny_all_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	vs->deny_flag |= SRC_DENY;
+}
+
+static void
+src_deny_handler(vector_t *strvec)
+{
+	alloc_deny(vector_slot(strvec, 1), SRC_DENY);
+}
+
+static void
+src_access_handler(vector_t *strvec)
+{
+	alloc_access(vector_slot(strvec, 1), SRC_ACCESS);
+}
+
+static void
+dst_deny_all_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	vs->deny_flag |= DST_DENY;
+}
+
+static void
+dst_deny_handler(vector_t *strvec)
+{
+	alloc_deny(vector_slot(strvec, 1), DST_DENY);
+}
+
+static void
+dst_access_handler(vector_t *strvec)
+{
+	alloc_access(vector_slot(strvec, 1), DST_ACCESS);
+}
+
 static void
 bind_dev_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->vip_bind_dev = set_value(strvec);
-}
-static void
-blklst_group_handler(vector_t *strvec)
-{
-	alloc_blklst_group(vector_slot(strvec, 1));
-	alloc_value_block(strvec, alloc_blklst_entry);
-}
-static void
-blklst_gname_handler(vector_t *strvec)
-{
-	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->blklst_addr_gname = set_value(strvec);
 }
 
 static void
@@ -502,8 +529,6 @@ check_init_keywords(void)
 
 	/* local IP address mapping */
 	install_keyword_root("local_address_group", &laddr_group_handler);
-	/* blacklist IP */
-	install_keyword_root("deny_address_group", &blklst_group_handler);
 
 	/* Virtual server mapping */
 	install_keyword_root("virtual_server_group", &vsg_handler);
@@ -557,9 +582,15 @@ check_init_keywords(void)
 	install_sublevel_end();
 
 	install_keyword("laddr_group_name", &laddr_gname_handler);
-	install_keyword("daddr_group_name", &blklst_gname_handler);
 	install_keyword("syn_proxy", &syn_proxy_handler);
 	install_keyword("vip_bind_dev", &bind_dev_handler);
+
+	install_keyword("src_deny_all", &src_deny_all_handler);
+	install_keyword("src_deny", &src_deny_handler);
+	install_keyword("src_access", &src_access_handler);
+	install_keyword("dst_deny_all", &dst_deny_all_handler);
+	install_keyword("dst_deny", &dst_deny_handler);
+	install_keyword("dst_access", &dst_access_handler);
 
 	return keywords;
 }

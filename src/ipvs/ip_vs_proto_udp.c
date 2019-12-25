@@ -28,11 +28,11 @@
 #include "ipvs/proto_udp.h"
 #include "ipvs/conn.h"
 #include "ipvs/service.h"
-#include "ipvs/blklst.h"
 #include "ipvs/redirect.h"
 #include "parser/parser.h"
 #include "uoa.h"
 #include "neigh.h"
+#include "ipvs/acl.h"
 
 #define UOA_DEF_MAX_TRAIL   3
 
@@ -167,6 +167,11 @@ static int udp_conn_sched(struct dp_vs_proto *proto,
         return EDPVS_NOSERV;
     }
 
+    if (acl_rule_mbuf(iph->af, mbuf, svc)) {
+        *verdict = INET_DROP;
+        return EDPVS_INVPKT;
+    }
+
     /* schedule RS and create new connection */
     *conn = dp_vs_schedule(svc, iph, mbuf, false, outwall);
     if (!*conn) {
@@ -196,7 +201,7 @@ static struct dp_vs_conn *
 udp_conn_lookup(struct dp_vs_proto *proto,
                 const struct dp_vs_iphdr *iph,
                 struct rte_mbuf *mbuf, int *direct,
-                bool reverse, bool *drop, lcoreid_t *peer_cid)
+                bool reverse, lcoreid_t *peer_cid)
 {
     struct udp_hdr *uh, _udph;
     struct dp_vs_conn *conn;
@@ -205,12 +210,6 @@ udp_conn_lookup(struct dp_vs_proto *proto,
     uh = mbuf_header_pointer(mbuf, iph->len, sizeof(_udph), &_udph);
     if (unlikely(!uh))
         return NULL;
-
-    if (dp_vs_blklst_lookup(iph->proto, &iph->daddr, uh->dst_port,
-                            &iph->saddr)) {
-        *drop = true;
-        return NULL;
-    }
 
     conn = dp_vs_conn_get(iph->af, iph->proto,
                           &iph->saddr, &iph->daddr,

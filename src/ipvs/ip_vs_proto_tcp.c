@@ -30,8 +30,8 @@
 #include "ipvs/service.h"
 #include "ipvs/dest.h"
 #include "ipvs/synproxy.h"
-#include "ipvs/blklst.h"
 #include "parser/parser.h"
+#include "ipvs/acl.h"
 /* we need more detailed fields than dpdk tcp_hdr{},
  * like tcphdr.syn, so use standard definition. */
 #include <netinet/tcp.h>
@@ -616,6 +616,11 @@ static int tcp_conn_sched(struct dp_vs_proto *proto,
         return EDPVS_NOSERV;
     }
 
+    if (acl_rule_mbuf(iph->af, mbuf, svc)) {
+        *verdict = INET_DROP;
+        return EDPVS_INVPKT;
+    }
+
     *conn = dp_vs_schedule(svc, iph, mbuf, false, outwall);
     if (!*conn) {
         *verdict = INET_DROP;
@@ -627,7 +632,7 @@ static int tcp_conn_sched(struct dp_vs_proto *proto,
 
 static struct dp_vs_conn *
 tcp_conn_lookup(struct dp_vs_proto *proto, const struct dp_vs_iphdr *iph,
-                struct rte_mbuf *mbuf, int *direct, bool reverse, bool *drop,
+                struct rte_mbuf *mbuf, int *direct, bool reverse,
                 lcoreid_t *peer_cid)
 {
     struct tcphdr *th, _tcph;
@@ -637,11 +642,6 @@ tcp_conn_lookup(struct dp_vs_proto *proto, const struct dp_vs_iphdr *iph,
     th = mbuf_header_pointer(mbuf, iph->len, sizeof(_tcph), &_tcph);
     if (unlikely(!th))
         return NULL;
-
-    if (dp_vs_blklst_lookup(iph->proto, &iph->daddr, th->dest, &iph->saddr)) {
-        *drop = true;
-        return NULL;
-    }
 
     conn = dp_vs_conn_get(iph->af, iph->proto,
             &iph->saddr, &iph->daddr, th->source, th->dest, direct, reverse);

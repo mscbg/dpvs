@@ -24,6 +24,7 @@
 #include "ipvs/stats.h"
 #include "ipvs/dest.h"
 #include "inet.h"
+#include "../src/ipvs/libtree/libtree.h"
 
 #define DP_VS_SCHEDNAME_MAXLEN      16
 
@@ -43,6 +44,17 @@
 #define DP_VS_SVC_F_QID_HASH        0x0200      /* quic cid hash target */
 
 #define DP_VS_SVC_F_MATCH           0x0400      /* snat match */
+
+#define DP_VS_SVC_F_SRC_DENY        0X1000      /* src deny flag */
+#define DP_VS_SVC_F_DST_DENY        0X2000      /* dst deny flag */
+
+enum {
+    SRC_ACCESS_TREE = 0,
+    SRC_DENY_TREE,
+    DST_ACCESS_TREE,
+    DST_DENY_TREE,
+    DP_VS_TREE_NUM,
+};
 
 /* virtual service */
 struct dp_vs_service {
@@ -85,6 +97,10 @@ struct dp_vs_service {
     struct list_head    laddr_list; /* local address (LIP) pool */
     struct list_head    *laddr_curr;
     uint32_t            num_laddrs;
+
+    /* ACL */
+    uint32_t            num_acls;
+    struct avltree      tree[DP_VS_TREE_NUM];
 
     /* ... flags, timer ... */
 } __rte_cache_aligned;

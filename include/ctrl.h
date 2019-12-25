@@ -186,31 +186,30 @@ int msg_type_table_print(char *buf, int len); /* print msg_type table on all con
 int msg_dump(const struct dpvs_msg *msg, char *buf, int len);
 
 /***************************** built-in msg-type ******************************/
-#define MSG_TYPE_REG                        1
-#define MSG_TYPE_UNREG                      2
-#define MSG_TYPE_HELLO                      3
-#define MSG_TYPE_GET_ALL_SLAVE_ID           4
-#define MSG_TYPE_MASTER_XMIT                5
-#define MSG_TYPE_ROUTE_ADD                  6
-#define MSG_TYPE_ROUTE_DEL                  7
-#define MSG_TYPE_NETIF_LCORE_STATS          8
-#define MSG_TYPE_BLKLST_ADD                 9
-#define MSG_TYPE_BLKLST_DEL                 10
-#define MSG_TYPE_STATS_GET                  11
-#define MSG_TYPE_SAPOOL_STATS               12
-#define MSG_TYPE_TC_STATS                   13
-#define MSG_TYPE_CONN_GET                   14
-#define MSG_TYPE_CONN_GET_ALL               15
-#define MSG_TYPE_IPV6_STATS                 16
-#define MSG_TYPE_ROUTE6                     17
-#define MSG_TYPE_NEIGH_GET                  18
-#define MSG_TYPE_IPSET_ADD                  19
-#define MSG_TYPE_IPSET_DEL                  20
-#define MSG_TYPE_IPSET_FLUSH                21
-
-/* for svc per_core, refer to service.h*/
 enum {
-    MSG_TYPE_SVC_SET_FLUSH = MSG_TYPE_IPSET_FLUSH + 1,
+    MSG_TYPE_REG = 1,
+    MSG_TYPE_UNREG,
+    MSG_TYPE_HELLO,
+    MSG_TYPE_GET_ALL_SLAVE_ID,
+    MSG_TYPE_MASTER_XMIT,
+    MSG_TYPE_ROUTE_ADD,
+    MSG_TYPE_ROUTE_DEL,
+    MSG_TYPE_NETIF_LCORE_STATS,
+    MSG_TYPE_STATS_GET,
+    MSG_TYPE_SAPOOL_STATS,
+    MSG_TYPE_TC_STATS,
+    MSG_TYPE_CONN_GET,
+    MSG_TYPE_CONN_GET_ALL,
+    MSG_TYPE_IPV6_STATS,
+    MSG_TYPE_ROUTE6,
+    MSG_TYPE_NEIGH_GET,
+    MSG_TYPE_IPSET_ADD,
+    MSG_TYPE_IPSET_DEL,
+    MSG_TYPE_IPSET_FLUSH,
+    MSG_TYPE_ACL_ADD,
+    MSG_TYPE_ACL_DEL,
+    MSG_TYPE_ACL_GET,
+    MSG_TYPE_SVC_SET_FLUSH,
     MSG_TYPE_SVC_SET_ZERO,    
     MSG_TYPE_SVC_SET_ADD,      
     MSG_TYPE_SVC_SET_EDIT,    

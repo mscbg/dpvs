@@ -108,18 +108,6 @@ typedef struct _local_addr_group {
 	list range;
 } local_addr_group;
 
-/* blacklist ip group*/
-typedef struct _blklst_addr_entry {
-        struct sockaddr_storage addr;
-        uint8_t range;
-} blklst_addr_entry;
-
-typedef struct _blklst_addr_group {
-        char *gname;
-        list addr_ip;
-        list range;
-} blklst_addr_group;
-
 typedef struct _tunnel_entry {
         struct sockaddr_storage remote;
         struct sockaddr_storage local;
@@ -168,10 +156,12 @@ typedef struct _virtual_server {
 	uint32_t			granularity_persistence;
 	char				*virtualhost;
 	list				rs;
+	list				acl;
 	int				alive;
 	unsigned			alpha;		/* Alpha mode enabled. */
 	unsigned			omega;		/* Omega mode enabled. */
 	unsigned			syn_proxy;		/* Syn_proxy mode enabled. */
+	unsigned			deny_flag;
 	char				*quorum_up;	/* A hook to call when the VS gains quorum. */
 	char				*quorum_down;	/* A hook to call when the VS loses quorum. */
 	long unsigned			quorum;		/* Minimum live RSs to consider VS up. */
@@ -181,7 +171,6 @@ typedef struct _virtual_server {
 	int					reloaded;   /* quorum_state was copied from old config while reloading */
 	char				*local_addr_gname;		/* local ip address group name */
 	char				*vip_bind_dev;		/* the interface name,vip bindto */
-	char				*blklst_addr_gname;	/* black list ip group name */
 
 	uint16_t			af;
 	char				srange[256];
@@ -196,13 +185,19 @@ typedef struct _virtual_server {
 #endif
 } virtual_server_t;
 
+typedef struct _acl_server {
+	int                             af;
+	union inet_addr 		addr_low;
+	union inet_addr			addr_high;
+	int				deny;
+} acl_server_t;
+
 /* Configuration data root */
 typedef struct _check_data {
 	ssl_data_t			*ssl;
 	list				vs_group;
 	list				vs;
 	list laddr_group;
-	list blklst_group;
 	list tunnel_group;
 } check_data_t;
 
@@ -292,13 +287,11 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 			 (((X)->local_addr_gname && (Y)->local_addr_gname &&		\
 			   !strcmp((X)->local_addr_gname, (Y)->local_addr_gname)) ||	\
 			  (!(X)->local_addr_gname && !(Y)->local_addr_gname))		&&\
-			 (((X)->blklst_addr_gname && (Y)->blklst_addr_gname &&		\
-			   !strcmp((X)->blklst_addr_gname, (Y)->blklst_addr_gname)) ||	\
-			 (!(X)->blklst_addr_gname && !(Y)->blklst_addr_gname))		&&\
 			 !strcmp((X)->srange, (Y)->srange)				&&\
 			 !strcmp((X)->drange, (Y)->drange)				&&\
 			 !strcmp((X)->iifname, (Y)->iifname)				&&\
 			 !strcmp((X)->oifname, (Y)->oifname)				&&\
+			 (X)->deny_flag == (Y)->deny_flag				&&\
 			 (X)->af == (Y)->af)
 
 #define VSGE_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr) &&	\
@@ -330,9 +323,9 @@ extern check_data_t *alloc_check_data(void);
 extern void free_check_data(check_data_t *);
 extern void dump_check_data(check_data_t *);
 extern char *format_vs (virtual_server_t *);
-extern void alloc_blklst_group(char *);
-extern void alloc_blklst_entry(vector_t *);
 
 extern void alloc_tunnel_entry(char *name);
 extern void alloc_tunnel(char *gname);
+extern void alloc_deny(char *net_seg, int dir);
+extern void alloc_access(char *net_seg, int dir);
 #endif

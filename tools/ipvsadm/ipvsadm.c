@@ -141,10 +141,8 @@
 #define CMD_ADDLADDR		(CMD_NONE+15)
 #define CMD_DELLADDR		(CMD_NONE+16)
 #define CMD_GETLADDR		(CMD_NONE+17)
-#define CMD_ADDBLKLST		(CMD_NONE+18)
-#define CMD_DELBLKLST		(CMD_NONE+19)
-#define CMD_GETBLKLST		(CMD_NONE+20)
-#define CMD_MAX			CMD_GETBLKLST
+#define CMD_GETACL		(CMD_NONE+18)
+#define CMD_MAX			CMD_GETACL
 #define NUMBER_OF_CMD		(CMD_MAX - CMD_NONE)
 
 static const char* cmdnames[] = {
@@ -165,9 +163,7 @@ static const char* cmdnames[] = {
 	"add-laddr" ,
 	"del-laddr" ,
 	"get-laddr" ,
-	"add-blklst",
-	"del-blklst",
-	"get-blklst",
+	"get-acl",
 };
 
 static const char* optnames[] = {
@@ -195,12 +191,11 @@ static const char* optnames[] = {
 	"ops",
 	"pe" ,
 	"local-address" ,
-	"blklst-address",
 	"synproxy" ,
 	"ifname" ,
 	"sockpair" ,
 	"hash-target",
-	"cpu"
+	"cpu",
 };
 
 /*
@@ -213,47 +208,43 @@ static const char* optnames[] = {
  */
 static const char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 {
-/* -n   -c   svc  -s   -p   -M   -r   fwd  -w   -x   -y   -mc  tot  dmn  -st  -rt  thr  -pc  srt  sid  -ex  ops  pe   laddr blst syn ifname sockpair hashtag cpu*/
+/* -n   -c   svc  -s   -p   -M   -r   fwd  -w   -x   -y   -mc  tot  dmn  -st  -rt  thr  -pc  srt  sid  -ex  ops  pe   laddr  syn ifname sockpair hashtag cpu*/
 /*ADD*/   
-    {'x', 'x', '+', ' ', ' ', ' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', ' ', 'x', 'x', 'x',  ' ', 'x' ,'x' ,' ', 'x'},
+    {'x', 'x', '+', ' ', ' ', ' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', ' ', 'x', 'x', ' ', 'x' ,'x' ,' ', 'x'},
 /*EDIT*/  
-    {'x', 'x', '+', ' ', ' ', ' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', ' ', 'x', 'x', 'x',  ' ', 'x' ,'x' ,' ', 'x'},
+    {'x', 'x', '+', ' ', ' ', ' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', ' ', 'x', 'x', ' ', 'x' ,'x' ,' ', 'x'},
 /*DEL*/      
-    {'x', 'x', '+', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
+    {'x', 'x', '+', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x' ,'x' ,'x', 'x'},
 /*FLUSH*/    
-    {'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
+    {'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x' ,'x' ,'x', 'x'},
 /*LIST*/     
-    {' ', '1', '1', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', '1', '1', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'x', 'x', 'x', 'x',  'x', 'x' ,' ' ,'x', ' '},
+    {' ', '1', '1', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', '1', '1', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'x', 'x', 'x',  'x', 'x' ,' ' ,'x', ' '},
 /*ADDSRV*/   
-    {'x', 'x', '+', 'x', 'x', 'x', '+', ' ', ' ', ' ', ' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
+    {'x', 'x', '+', 'x', 'x', 'x', '+', ' ', ' ', ' ', ' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
 /*DELSRV*/   
-    {'x', 'x', '+', 'x', 'x', 'x', '+', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
+    {'x', 'x', '+', 'x', 'x', 'x', '+', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
 /*EDITSRV*/  
-    {'x', 'x', '+', 'x', 'x', 'x', '+', ' ', ' ', ' ', ' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
+    {'x', 'x', '+', 'x', 'x', 'x', '+', ' ', ' ', ' ', ' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
 /*TIMEOUT*/  
-    {'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
+    {'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
 /*STARTD*/   
-    {'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', ' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', ' ', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
+    {'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', ' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', ' ', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
 /*STOPD*/    
-    {'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', ' ', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
+    {'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', ' ', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
 /*RESTORE*/  
-    {'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
+    {'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
 /*SAVE*/     
-    {' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
+    {' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x' ,'x' ,'x', 'x'},
 /*ZERO*/     
-    {'x', 'x', ' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
+    {'x', 'x', ' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
 /*ADDLADDR*/ 
-    {'x', 'x', '+', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', '+', 'x',  'x', '+' ,'x' ,'x', 'x'},
+    {'x', 'x', '+', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', '+',  'x', '+' ,'x' ,'x', 'x'},
 /*DELLADDR*/ 
-    {'x', 'x', '+', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', '+', 'x',  'x', '+' ,'x' ,'x', 'x'},
+    {'x', 'x', '+', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', '+',  'x', '+' ,'x' ,'x', 'x'},
 /*GETLADDR*/ 
-    {'x', 'x', ' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', ' '},
-/*ADDBLKLST*/
-    {'x', 'x', '+', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', '+',  'x', 'x' ,'x' ,'x', 'x'},
-/*DELBLKLST*/
-    {'x', 'x', '+', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', '+',  'x', 'x' ,'x' ,'x', 'x'},
-/*GETBLKLST*/
-    {'x', 'x', ' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', 'x'},
+    {'x', 'x', ' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', ' '},
+/*GETACL*/
+    {'x', 'x', ' ', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x' ,'x' ,'x', ' '},
 };
 
 /* printing format flags */
@@ -284,7 +275,6 @@ struct ipvs_command_entry {
 	ipvs_timeout_t		timeout;
 	ipvs_daemon_t		daemon;
 	ipvs_laddr_t		laddr;
-	ipvs_blklst_t		blklst;
 	ipvs_sockpair_t		sockpair;
 	lcoreid_t		cid;
 };
@@ -349,9 +339,8 @@ static void list_timeout(void);
 static void list_daemon(void);
 static int list_laddrs(ipvs_service_t *svc, int with_title, lcoreid_t cid);
 static int list_all_laddrs(lcoreid_t cid);
-static void list_blklsts_print_title(void);
-static int list_blklst(uint32_t addr_v4, uint16_t port, uint16_t protocol);
-static int list_all_blklsts(void);
+static int list_acls(ipvs_service_t *svc, int with_title, lcoreid_t cid);
+static int list_all_acls(lcoreid_t cid);
 
 #if 0
 static int modprobe_ipvs(void);
@@ -418,9 +407,7 @@ parse_options(int argc, char **argv, struct ipvs_command_entry *ce,
 		{ "add-laddr", 'P', POPT_ARG_NONE, NULL, 'P', NULL, NULL },
 		{ "del-laddr", 'Q', POPT_ARG_NONE, NULL, 'Q', NULL, NULL },
 		{ "get-laddr", 'G', POPT_ARG_NONE, NULL, 'G', NULL, NULL },
-		{ "add-blklst", 'U', POPT_ARG_NONE, NULL, 'U', NULL, NULL },
-		{ "del-blklst", 'V', POPT_ARG_NONE, NULL, 'V', NULL, NULL },
-		{ "get-blklst", 'B', POPT_ARG_NONE, NULL, 'B', NULL, NULL },
+		{ "get-acl", 'B', POPT_ARG_NONE, NULL, 'B', NULL, NULL},
 		{ "tcp-service", 't', POPT_ARG_STRING, &optarg, 't',
 		  NULL, NULL },
 		{ "udp-service", 'u', POPT_ARG_STRING, &optarg, 'u',
@@ -472,7 +459,6 @@ parse_options(int argc, char **argv, struct ipvs_command_entry *ce,
 		{ "pe", '\0', POPT_ARG_STRING, &optarg, TAG_PERSISTENCE_ENGINE,
 		  NULL, NULL },
 		{ "laddr", 'z', POPT_ARG_STRING, &optarg, 'z', NULL, NULL },
-		{ "blklst", 'k', POPT_ARG_STRING, &optarg, 'k', NULL, NULL },
 		{ "synproxy", 'j' , POPT_ARG_STRING, &optarg, 'j', NULL, NULL },
 		{ "ifname", 'F', POPT_ARG_STRING, &optarg, 'F', NULL, NULL },
 		{ "match", 'H', POPT_ARG_STRING, &optarg, 'H', NULL, NULL },
@@ -556,14 +542,8 @@ parse_options(int argc, char **argv, struct ipvs_command_entry *ce,
 	case 'G':
 		set_command(&ce->cmd, CMD_GETLADDR);
 		break;
-	case 'U':
-		set_command(&ce->cmd, CMD_ADDBLKLST);
-		break;
-	case 'V':
-		set_command(&ce->cmd, CMD_DELBLKLST);
-		break;
 	case 'B':
-		set_command(&ce->cmd, CMD_GETBLKLST);
+		set_command(&ce->cmd, CMD_GETACL);
 		break;
 	default:
 		tryhelp_exit(argv[0], -1);
@@ -768,20 +748,6 @@ parse_options(int argc, char **argv, struct ipvs_command_entry *ce,
 			ce->laddr.addr = nsvc.addr;
 			ce->laddr.__addr_v4 = nsvc.addr.ip;
 			break;
-
-			}
-		case 'k':
-			{
-			ipvs_service_t		nsvc;
-			set_option(options,OPT_BLKLST_ADDRESS);
-			parse = parse_service(optarg, &nsvc);
-			if (!(parse & SERVICE_ADDR))
-				fail(2, "illegal blacklist address");
-			ce->blklst.af = nsvc.af;
-			ce->blklst.addr = nsvc.addr;
-			ce->blklst.__addr_v4 = nsvc.addr.ip;
-			break;
-
 			}
 		case 'F':
 			set_option(options, OPT_IFNAME);
@@ -1034,22 +1000,11 @@ static int process_options(int argc, char **argv, int reading_stdin)
 		else
 			result = list_all_laddrs(ce.cid);
 		break;
-
-	case CMD_ADDBLKLST:
-		result = ipvs_add_blklst(&ce.svc , &ce.blklst);
-		break;
-
-	case CMD_DELBLKLST:
-		result = ipvs_del_blklst(&ce.svc , &ce.blklst);
-		break;
-
-	case CMD_GETBLKLST:
-		if(options & OPT_SERVICE) {
-			list_blklsts_print_title();
-			result = list_blklst(ce.svc.addr.ip, ce.svc.port, ce.svc.protocol);
-		}
+	case CMD_GETACL:
+		if (options & OPT_SERVICE)
+			result = list_acls(&ce.svc, format, ce.cid);
 		else
-			result = list_all_blklsts();
+			result = list_all_acls(ce.cid);
 		break;
 	}
 	if (result)
@@ -1478,9 +1433,7 @@ static void usage_exit(const char *program, const int exit_status)
 		"  --add-laddr       -P        add local address\n"
 		"  --del-laddr       -Q        del local address\n"
 		"  --get-laddr       -G        get local address\n"
-		"  --add-blklst      -U        add blacklist address\n"
-		"  --del-blklst      -V        del blacklist address\n"
-		"  --get-blklst      -B        get blacklist address\n"
+		"  --get-acl         -B        get acl address\n"
 		"  --save            -S        save rules to stdout\n"
 		"  --add-server      -a        add real server with options\n"
 		"  --edit-server     -e        edit real server with options\n"
@@ -2122,64 +2075,226 @@ static int list_all_laddrs(lcoreid_t cid)
 
 }
 
-static void list_blklsts_print_title(void)
+static void list_acls_print_title(void)
 {
-	printf("%-20s %-8s %-20s\n" ,
-		"VIP:VPORT" ,
-		"PROTO" ,
-		"BLACKLIST");
+	printf("%-80s %-20s\n",
+		"Virtual Server",
+		"ACL");
 }
 
-static void print_service_and_blklsts(struct dp_vs_blklst_conf *blklst)
+static void list_acls_print_service(ipvs_service_entry_t *entry,
+					lcoreid_t cid)
 {
-	char pbuf_v[32], pbuf_d[32], port[6];
-	sprintf(pbuf_v , "%u.%u.%u.%u" , PRINT_NIP(blklst->vaddr.in.s_addr));
-	sprintf(pbuf_d , "%u.%u.%u.%u" , PRINT_NIP(blklst->blklst.in.s_addr));
-	sprintf(port, "%d", ntohs(blklst->vport));
-	if (blklst->proto ==IPPROTO_TCP)
-		printf("%s:%-8s %-8s %-20s\n" , pbuf_v, port, "TCP", pbuf_d);
-	else if(blklst->proto ==IPPROTO_UDP)
-		printf("%s:%-8s %-8s %-20s\n" , pbuf_v, port, "UDP", pbuf_d);
-	else if (blklst->proto == IPPROTO_ICMP)
-		printf("%s:%-8s %-8s %-20s\n" , pbuf_v, port, "ICMP", pbuf_d);
+	char svc_name[256];
+
+	if (entry->fwmark) {
+		if (entry->af == AF_INET6)
+			sprintf(svc_name, "FWM  %d IPv6", entry->fwmark);
+		else
+			sprintf(svc_name, "FWM  %d", entry->fwmark);
+	} else if (entry->__addr_v4 || entry->port) {
+		char *vname, *proto;
+
+		if (!(vname = addrport_to_anyname(entry->af, &entry->addr, ntohs(entry->port),
+						entry->protocol, 0)))
+			fail(2, "addrport_to_anyname: %s", strerror(errno));
+		if (entry->protocol == IPPROTO_TCP)
+			proto = "TCP";
+		else if (entry->protocol == IPPROTO_UDP)
+			proto = "UDP";
+		else if (entry->protocol == IPPROTO_ICMP)
+			proto = "ICMP";
+		else
+			proto = "ICMPV6";
+
+		sprintf(svc_name, "%s  %s", proto, vname);
+		if (entry->af != AF_INET6)
+			svc_name[33] = '\0';
+
+		free(vname);
+	} else {
+		char *proto;
+		char af[10];
+		int left = sizeof(svc_name);
+
+		if (entry->protocol == IPPROTO_TCP)
+			proto = "tcp";
+		else if (entry->protocol == IPPROTO_UDP)
+			proto = "udp";
+		else if (entry->protocol == IPPROTO_ICMP)
+			proto = "icmp";
+		else
+			proto = "icmpv6";
+
+		if (entry->af == AF_INET)
+			sprintf(af, "ipv4");
+		else if (entry->af == AF_INET6)
+			sprintf(af, "ipv6");
+
+		svc_name[0] = '\0';
+
+		left -= snprintf(svc_name + strlen(svc_name), left,
+			"MATCH %s", proto);
+
+		left -= snprintf(svc_name + strlen(svc_name), left,
+			",af=%s", af);
+
+		if (strcmp(entry->srange, "[::-::]:0-0") != 0 &&
+		    strcmp(entry->srange, "0.0.0.0-0.0.0.0:0-0") != 0)
+			left -= snprintf(svc_name + strlen(svc_name), left,
+			",from=%s", entry->srange);
+
+		if (strcmp(entry->drange, "[::-::]:0-0") != 0 &&
+		    strcmp(entry->drange, "0.0.0.0-0.0.0.0:0-0") != 0)
+			left -= snprintf(svc_name + strlen(svc_name), left,
+			",to=%s", entry->drange);
+
+		if (strlen(entry->iifname))
+			left -= snprintf(svc_name + strlen(svc_name), left,
+			",iif=%s", entry->iifname);
+
+		if (strlen(entry->oifname))
+			left -= snprintf(svc_name + strlen(svc_name), left,
+			",oif=%s", entry->oifname);
+	}
+
+	printf("%s %s", svc_name, entry->sched_name);
+	if (entry->flags & IP_VS_SVC_F_SIP_HASH)
+		printf(" sip");
+	if (entry->flags & IP_VS_SVC_F_QID_HASH)
+		printf(" qid");
+	if (entry->flags & IP_VS_SVC_F_PERSISTENT) {
+		printf(" persistent %u", entry->timeout);
+		if (entry->af == AF_INET)
+			if (entry->netmask != (unsigned long int) 0xffffffff) {
+				struct in_addr mask;
+				mask.s_addr = entry->netmask;
+				printf(" mask %s", inet_ntoa(mask));
+			}
+		if (entry->af == AF_INET6)
+			if (entry->netmask != 128)
+				printf(" mask %i", entry->netmask);
+		if (entry->pe_name[0])
+			printf(" pe %s", entry->pe_name);
+			if (entry->flags & IP_VS_SVC_F_ONEPACKET)
+				printf(" ops");
+	}
+	if (entry->flags & IP_VS_CONN_F_SYNPROXY)
+		printf(" synproxy");
+	if (entry->flags & IP_VS_SVC_F_SRC_DENY)
+		printf(" default:deny all src");
+	if (entry->flags & IP_VS_SVC_F_DST_DENY)
+		printf(" default:deny all dst");
+	if (entry->conn_timeout != 0)
+		printf(" conn_timeout %u", entry->conn_timeout);
+
+	printf("\n");
+}
+
+static void list_acls_print_acl(struct acl_entry *entry)
+{
+	char    buf_l[INET6_ADDRSTRLEN], buf_h[INET6_ADDRSTRLEN];
+	char    buf_flag[20];
+
+	if (entry->deny == SRC_ACCESS)
+		strcpy(buf_flag, "src access");
+	else if (entry->deny == DST_ACCESS)
+		strcpy(buf_flag, "dst access");
+	else if (entry->deny == SRC_DENY)
+		strcpy(buf_flag, "src deny");
+	else if (entry->deny == DST_DENY)
+		strcpy(buf_flag, "dst deny");
 	else
-		printf("proto not support!");
+		strcpy(buf_flag, "NULL");
+
+	if (entry->af == AF_INET) {
+		inet_ntop(AF_INET, &entry->addr_low.in, buf_l, sizeof(buf_l));
+		inet_ntop(AF_INET, &entry->addr_high.in, buf_h, sizeof(buf_h));
+	} else {
+		inet_ntop(AF_INET6, &entry->addr_low.in6, buf_l, sizeof(buf_l));
+		inet_ntop(AF_INET6, &entry->addr_high.in6, buf_h, sizeof(buf_h));
+	}
+
+	if (!inet_addr_equal(entry->af, &entry->addr_low, &entry->addr_high)) {
+		printf("%-80s %s-%s(%s)\n",
+			"",
+			buf_l,
+			buf_h,
+			buf_flag);
+	} else {
+		printf("%-80s %s(%s)\n",
+			"",
+			buf_l,
+			buf_flag);
+	}
 }
 
-static int list_blklst(uint32_t addr_v4, uint16_t port, uint16_t protocol)
+static void print_service_and_acls(struct acl_conf *acl, 
+				ipvs_service_entry_t *entry,
+				int with_title, lcoreid_t cid)
 {
-	struct dp_vs_blklst_conf_array *get;
 	int i;
-	if (!(get = ipvs_get_blklsts())) {
+
+	if (with_title)
+		list_acls_print_title();
+
+	list_acls_print_service(entry, cid);
+	for(i = 0 ; i < acl->nacls ; i ++){
+		list_acls_print_acl(acl->acls + i);
+	}
+
+	return;
+}
+
+static int list_acls(ipvs_service_t *svc, int with_title, lcoreid_t cid)
+{
+	ipvs_service_entry_t *entry;
+	struct acl_conf *acls;
+
+	if (!(entry = ipvs_get_service(svc,cid))) {
 		fprintf(stderr, "%s\n", ipvs_strerror(errno));
 		return -1;
 	}
 
-	for (i = 0; i < get->naddr; i++) {
-		if ( addr_v4== get->blklsts[i].vaddr.in.s_addr &&
-		     port == get->blklsts[i].vport&&
-		     protocol == get->blklsts[i].proto) {
-			print_service_and_blklsts(&get->blklsts[i]);
-		}
+	if (!(acls = ipvs_get_acls(entry, cid))) {
+		fprintf(stderr, "%s\n", ipvs_strerror(errno));
+		free(entry);
+		return -1;
 	}
-	free(get);
+
+	print_service_and_acls(acls, entry, with_title, cid);
+
+	free(entry);
+	free(acls);
+
 	return 0;
 }
 
-static int list_all_blklsts(void)
+static int list_all_acls(lcoreid_t cid)
 {
 	struct ip_vs_get_services *get;
-	int i;
+	struct acl_conf *acls;
+	int i, title_enable = 0;
 
-	if (!(get = ipvs_get_services(0))) {
+	if (!(get = ipvs_get_services(cid))) {
 		fprintf(stderr, "%s\n", ipvs_strerror(errno));
-		exit(1);
+		return -1;
 	}
 
-	list_blklsts_print_title();
-	for (i = 0; i < get->num_services; i++)
-		list_blklst(get->entrytable[i].__addr_v4, get->entrytable[i].port,
-				get->entrytable[i].protocol);
+	for (i = 0; i < get->num_services; i++) {
+		if (!(acls = ipvs_get_acls(&(get->entrytable[i]), cid))) {
+			free(get);
+			fprintf(stderr, "%s\n", ipvs_strerror(errno));
+			return -1;
+		}
+
+		title_enable = 0;
+		if (i == 0)
+			title_enable = 1;
+		print_service_and_acls(acls, &(get->entrytable[i]), title_enable, cid);
+
+		free(acls);
+	}
 
 	free(get);
 	return 0;
@@ -2366,7 +2481,7 @@ addrport_to_anyname(int af, const void *addr, unsigned short port,
 			 af == AF_INET ? "" : "]",
 			 port);
 	} else {
-	  snprintf(buf, 60, "%s%s%s:%s",
+		snprintf(buf, 60, "%s%s%s:%s",
 		   af == AF_INET ? "" : "[",
 		   addr_to_anyname(af, addr),
 		   af == AF_INET ? "" : "]",

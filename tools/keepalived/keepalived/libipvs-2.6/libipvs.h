@@ -68,14 +68,19 @@
 typedef struct ip_vs_service_user	ipvs_service_t;
 typedef struct ip_vs_dest_user		ipvs_dest_t;
 typedef struct ip_vs_laddr_user 	ipvs_laddr_t;
-typedef struct ip_vs_blklst_user        ipvs_blklst_t;
 typedef struct ip_vs_timeout_user	ipvs_timeout_t;
 typedef struct ip_vs_daemon_user	ipvs_daemon_t;
 typedef struct ip_vs_tunnel_user	ipvs_tunnel_t;
 typedef struct ip_vs_service_entry	ipvs_service_entry_t;
 typedef struct ip_vs_dest_entry		ipvs_dest_entry_t;
 typedef struct ip_vs_laddr_entry	ipvs_laddr_entry_t;
-typedef struct ip_vs_blklst_entry       ipvs_blklst_entry_t;
+
+typedef struct acl_server {
+	int                             af;
+        union inet_addr                 addr_low;
+        union inet_addr                 addr_high;
+        int                             deny;
+} ipvs_acl_t;
 
 /* ipvs info variable */
 extern struct ip_vs_getinfo ipvs_info;
@@ -125,16 +130,17 @@ extern int ipvs_add_laddr(ipvs_service_t *svc, ipvs_laddr_t * laddr);
 extern int ipvs_del_laddr(ipvs_service_t *svc, ipvs_laddr_t * laddr);
 extern struct ip_vs_get_laddrs *ipvs_get_laddrs(ipvs_service_entry_t *svc, lcoreid_t cid);
 
-/*for add/delete a blacklist ip*/
-extern int ipvs_add_blklst(ipvs_service_t *svc, ipvs_blklst_t * blklst);
-extern int ipvs_del_blklst(ipvs_service_t *svc, ipvs_blklst_t * blklst);
-
 /*for add/delete a tunnel*/
 extern int ipvs_add_tunnel(ipvs_tunnel_t * tunnel_entry);
 extern int ipvs_del_tunnel(ipvs_tunnel_t * tunnel_entry);
 
 /* set timeout */
 extern int ipvs_set_timeout(ipvs_timeout_t *to);
+
+/* set acl */
+extern int ipvs_add_acl(ipvs_service_t *svc, ipvs_acl_t *acl);
+extern int ipvs_del_acl(ipvs_service_t *svc, ipvs_acl_t *acl);
+extern struct acl_conf *ipvs_get_acls(ipvs_service_entry_t *svc, lcoreid_t cid);
 
 /* start a connection synchronizaiton daemon (master/backup) */
 extern int ipvs_start_daemon(ipvs_daemon_t *dm);
@@ -187,6 +193,8 @@ extern int ipvs_set_route6(struct dp_vs_route6_conf*, int cmd);
 
 extern int ipvs_set_ipaddr(struct inet_addr_param *param, int cmd);
 
-extern struct dp_vs_blklst_conf_array *ipvs_get_blklsts(void);
+extern bool 
+inet_addr_equal(int af, const union inet_addr *a1, 
+          const union inet_addr *a2); 
 
 #endif /* _LIBIPVS_H */

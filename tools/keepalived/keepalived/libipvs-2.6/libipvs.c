@@ -316,6 +316,49 @@ int ipvs_del_dest(ipvs_service_t *svc, ipvs_dest_t *dest)
 	return dpvs_setsockopt(DPVS_SO_SET_DELDEST, &svcdest, sizeof(svcdest)); 
 }
 
+static void ipvs_fill_acl_conf(ipvs_service_t *svc, ipvs_acl_t *acl,
+				struct acl_conf *conf)
+{
+	memset(conf, 0, sizeof(*conf));
+	conf->af_s   = svc->af;
+	conf->proto  = svc->protocol;
+	conf->vport  = svc->port;
+	conf->fwmark = svc->fwmark;
+	snprintf(conf->srange, sizeof(conf->srange), "%s", svc->srange);
+	snprintf(conf->drange, sizeof(conf->drange), "%s", svc->drange); \
+	snprintf(conf->iifname, sizeof(conf->iifname), "%s", svc->iifname); \
+	snprintf(conf->oifname, sizeof(conf->oifname), "%s", svc->oifname);	
+	conf->af        = acl->af;
+
+	if (svc->af == AF_INET) {
+		conf->vaddr.in = svc->addr.in;
+	} else  {
+		conf->vaddr.in6 = svc->addr.in6;
+	}
+
+	conf->addr_low  = acl->addr_low;
+	conf->addr_high = acl->addr_high;
+	conf->deny      = acl->deny;
+}
+
+int ipvs_add_acl(ipvs_service_t *svc, ipvs_acl_t *acl)
+{
+	struct acl_conf conf;
+
+	ipvs_fill_acl_conf(svc, acl, &conf);
+
+	return dpvs_setsockopt(DPVS_SO_SET_ADD_ACL, &conf, sizeof(conf));
+}
+
+int ipvs_del_acl(ipvs_service_t *svc, ipvs_acl_t *acl)
+{
+	struct acl_conf conf;
+
+	ipvs_fill_acl_conf(svc, acl, &conf);
+
+	return dpvs_setsockopt(DPVS_SO_SET_DEL_ACL, &conf, sizeof(conf));
+}
+
 static void ipvs_fill_laddr_conf(ipvs_service_t *svc, ipvs_laddr_t *laddr, 
                                  struct dp_vs_laddr_conf *conf)
 {
@@ -384,44 +427,6 @@ int ipvs_del_laddr(ipvs_service_t *svc, ipvs_laddr_t *laddr)
 	return dpvs_setsockopt(SOCKOPT_SET_LADDR_DEL, &conf, sizeof(conf));
 }
 
-/*for black list*/
-static void ipvs_fill_blklst_conf(ipvs_service_t *svc, ipvs_blklst_t *blklst,
-                                 struct dp_vs_blklst_conf *conf)
-{
-	memset(conf, 0, sizeof(*conf));
-	conf->af        = svc->af;
-	conf->proto     = svc->protocol;
-	conf->vport     = svc->port;
-	conf->fwmark    = svc->fwmark;
-	if (svc->af == AF_INET) {
-		conf->vaddr.in = svc->addr.in;
-		conf->blklst.in = blklst->addr.in;
-	} else {
-		conf->vaddr.in6 = svc->addr.in6;
-		conf->blklst.in6 = blklst->addr.in6;
-	}
-
-	return;
-}
-
-int ipvs_add_blklst(ipvs_service_t *svc, ipvs_blklst_t *blklst)
-{
-	struct dp_vs_blklst_conf conf;
-
-	ipvs_fill_blklst_conf(svc, blklst, &conf);
-
-	return dpvs_setsockopt(SOCKOPT_SET_BLKLST_ADD, &conf, sizeof(conf));
-}
-
-int ipvs_del_blklst(ipvs_service_t *svc, ipvs_blklst_t * blklst)
-{
-	struct dp_vs_blklst_conf conf;
-
-	ipvs_fill_blklst_conf(svc, blklst, &conf);
-
-	return dpvs_setsockopt(SOCKOPT_SET_BLKLST_DEL, &conf, sizeof(conf));
-}
-
 /* for tunnel entry */
 static void ipvs_fill_tunnel_conf(ipvs_tunnel_t* tunnel_entry,
                                  struct ip_tunnel_param *conf)
@@ -484,6 +489,11 @@ static inline sockoptid_t  cpu2opt_svc(lcoreid_t cid, sockoptid_t old_opt)
 
 /* now support get_all only */
 static inline sockoptid_t cpu2opt_laddr(lcoreid_t cid, sockoptid_t old_opt)
+{
+	return old_opt + cid;
+}
+
+static inline sockoptid_t cpu2opt_acl(lcoreid_t cid, sockoptid_t old_opt)
 {
 	return old_opt + cid;
 }
@@ -682,32 +692,32 @@ void ipvs_free_lddrs(struct ip_vs_get_laddrs* p)
 	free(p);
 }
 
-struct dp_vs_blklst_conf_array *ipvs_get_blklsts(void)
+struct acl_conf *ipvs_get_acls(ipvs_service_entry_t *svc, lcoreid_t cid)
 {
-	struct dp_vs_blklst_conf_array *array, *result;
-	size_t size;
-	int i, err;
+	struct acl_conf *acls, conf;
+	size_t res_size;
 
-	err = dpvs_getsockopt(SOCKOPT_GET_BLKLST_GETALL, NULL, 0, 
-				(void **)&result, &size);
-	if (err != 0)
+	memset(&conf, 0, sizeof(struct dp_vs_laddr_conf));
+	conf.af_s = svc->af;
+	conf.proto = svc->protocol;
+	if (svc->af == AF_INET)
+		conf.vaddr.in = svc->addr.in;
+	else
+		conf.vaddr.in6 = svc->addr.in6;
+	conf.vport = svc->port;
+	conf.fwmark = svc->fwmark;
+	conf.cid = cid;
+
+	snprintf(conf.srange, sizeof(conf.srange), "%s", svc->srange);
+	snprintf(conf.drange, sizeof(conf.drange), "%s", svc->drange);
+	snprintf(conf.iifname, sizeof(conf.iifname), "%s", svc->iifname);
+	snprintf(conf.oifname, sizeof(conf.oifname), "%s", svc->oifname);
+
+	if (dpvs_getsockopt(cpu2opt_acl(cid, DPVS_SO_GET_ACL), &conf, sizeof(conf),
+				(void **)&acls, &res_size) != 0)
 		return NULL;
-	if (size < sizeof(*result)
-		|| size != sizeof(*result) + \
-		result->naddr * sizeof(struct dp_vs_blklst_conf)) {
-		dpvs_sockopt_msg_free(result);
-		return NULL;
-	}
-	if (!(array = malloc(size)))
-		return NULL;
-	memcpy(array, result, sizeof(struct dp_vs_blklst_conf_array));
-	for (i = 0; i < result->naddr; i++) {
-		memcpy(&array->blklsts[i], &result->blklsts[i],
-			sizeof(struct dp_vs_blklst_conf));
-		
-	}
-	dpvs_sockopt_msg_free(result);
-	return array;
+
+	return acls;
 }
 
 struct ip_vs_get_dests *ipvs_get_dests(ipvs_service_entry_t *svc, lcoreid_t cid)
@@ -961,11 +971,6 @@ const char *ipvs_strerror(int err)
 		{ ipvs_del_laddr, ESRCH, "Service not defined" },
 		{ ipvs_del_laddr, ENOENT, "No such Local address" },
 		{ ipvs_get_laddrs, ESRCH, "Service not defined" },
-		{ ipvs_add_blklst, ESRCH, "Service not defined" },
-		{ ipvs_add_blklst, EEXIST, "blacklist address already exists" },
-		{ ipvs_del_blklst, ESRCH, "Service not defined" },
-		{ ipvs_del_blklst, ENOENT, "No such deny address" },
-		{ ipvs_get_blklsts, ESRCH, "Service not defined" },
 		{ 0, EPERM, "Permission denied (you must be root)" },
 		{ 0, EINVAL, "Invalid operation.  Possibly wrong module version, address not unicast, ..." },
 		{ 0, ENOPROTOOPT, "Protocol not available" },
@@ -1005,3 +1010,14 @@ void ipvs_service_entry_2_user(const ipvs_service_entry_t *entry, ipvs_service_t
 	strcpy(user->iifname, entry->iifname);
 }
 
+bool inet_addr_equal(int af, const union inet_addr *a1, const union inet_addr *a2) 
+{
+	switch (af) {
+	case AF_INET:
+		return a1->in.s_addr == a2->in.s_addr;
+	case AF_INET6:
+		return memcmp(a1->in6.s6_addr, a2->in6.s6_addr, 16) == 0;
+	default:
+		return memcmp(a1, a2, sizeof(union inet_addr)) == 0;
+	}
+}

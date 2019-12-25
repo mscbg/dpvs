@@ -28,7 +28,7 @@
 #include "ipvs/dest.h"
 #include "ipvs/sched.h"
 #include "ipvs/laddr.h"
-#include "ipvs/blklst.h"
+#include "ipvs/acl.h"
 #include "ctrl.h"
 #include "route.h"
 #include "route6.h"
@@ -548,6 +548,8 @@ static int dp_vs_add_service(struct dp_vs_service_conf *u,
         return ret;
     rte_atomic32_set(&svc->refcnt, 1);
 
+    acl_tree_init(svc);
+
     *svc_p = svc;
     return EDPVS_OK;
 
@@ -637,8 +639,6 @@ static void __dp_vs_del_service(struct dp_vs_service *svc)
     dp_vs_unbind_scheduler(svc);
 
     dp_vs_laddr_flush(svc);
-
-    dp_vs_blklst_flush(svc);
 
     /*
      *    Unlink the whole destination list
@@ -1080,7 +1080,7 @@ static int dp_vs_get_services_uc_cb(struct dpvs_msg *msg)
         return EDPVS_NOMEM;
     ret = dp_vs_get_service_entries(get->num_services, output, cid);
     if (ret != EDPVS_OK) {
-        rte_free(output);
+        msg_reply_free(output);
         return ret;
     }
     msg->reply.len = size;
@@ -1137,7 +1137,7 @@ static int dp_vs_get_service_uc_cb(struct dpvs_msg *msg)
 
     ret = dp_vs_copy_service(entry, svc);
     if (ret != EDPVS_OK) {
-        rte_free(entry);
+        msg_reply_free(entry);
         return ret;
     }
     msg->reply.len = size;
@@ -1181,7 +1181,7 @@ static int dp_vs_get_dests_uc_cb(struct dpvs_msg *msg)
     rte_memcpy(output, get, sizeof(*get));
     ret = dp_vs_get_dest_entries(svc, output);
     if (ret != EDPVS_OK) {
-        rte_free(output);
+        msg_reply_free(output);
         return ret;
     }
 

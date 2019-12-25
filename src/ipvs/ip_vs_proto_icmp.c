@@ -35,6 +35,7 @@
 #include "ipvs/conn.h"
 #include "ipvs/service.h"
 #include "ipvs/redirect.h"
+#include "ipvs/acl.h"
 
 /*
  * o ICMP tuple
@@ -105,6 +106,11 @@ static int icmp_conn_sched(struct dp_vs_proto *proto,
         *verdict = INET_ACCEPT;
         return EDPVS_NOSERV;
     }
+
+    if (acl_rule_mbuf(iph->af, mbuf, svc)) {
+        *verdict = INET_DROP;
+        return EDPVS_INVPKT;
+    }  
 
     /* schedule RS and create new connection */
     *conn = dp_vs_schedule(svc, iph, mbuf, false, outwall);
@@ -182,8 +188,7 @@ static bool is_icmp6_reply(uint8_t type) {
 static struct dp_vs_conn *icmp_conn_lookup(struct dp_vs_proto *proto,
                                            const struct dp_vs_iphdr *iph,
                                            struct rte_mbuf *mbuf, int *direct,
-                                           bool reverse, bool *drop,
-                                           lcoreid_t *peer_cid)
+                                           bool reverse, lcoreid_t *peer_cid)
 {
     void *ich = NULL;
     __be16 sport, dport; /* dummy ports */

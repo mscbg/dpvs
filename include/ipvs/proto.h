@@ -48,7 +48,7 @@ struct dp_vs_proto {
         (*conn_lookup)(struct dp_vs_proto *proto,
                        const struct dp_vs_iphdr *iph,
                        struct rte_mbuf *mbuf, int *direct,
-                       bool reverse, bool *drop, lcoreid_t *peer_cid);
+                       bool reverse, lcoreid_t *peer_cid);
 
     int (*conn_expire)(struct dp_vs_proto *proto,
                        struct dp_vs_conn *conn);

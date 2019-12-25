@@ -33,10 +33,10 @@
 #include "ipvs/laddr.h"
 #include "ipvs/xmit.h"
 #include "ipvs/synproxy.h"
-#include "ipvs/blklst.h"
 #include "ipvs/proto_udp.h"
 #include "route6.h"
 #include "ipvs/redirect.h"
+#include "ipvs/acl.h"
 
 static inline int dp_vs_fill_iphdr(int af, struct rte_mbuf *mbuf,
                                    struct dp_vs_iphdr *iph)
@@ -650,7 +650,6 @@ static int __dp_vs_in_icmp4(struct rte_mbuf *mbuf, int *related)
     struct dp_vs_conn *conn;
     int off, dir, err;
     lcoreid_t cid, peer_cid;
-    bool drop = false;
 
     *related = 0; /* not related until found matching conn */
     cid = peer_cid = rte_lcore_id();
@@ -704,7 +703,7 @@ static int __dp_vs_in_icmp4(struct rte_mbuf *mbuf, int *related)
         return INET_DROP;
     dp_vs_fill_iphdr(AF_INET, mbuf, &dciph);
 
-    conn = prot->conn_lookup(prot, &dciph, mbuf, &dir, true, &drop, &peer_cid);
+    conn = prot->conn_lookup(prot, &dciph, mbuf, &dir, true, &peer_cid);
 
     /*
      * The connection is not locally found, however the redirect is found so
@@ -785,7 +784,6 @@ static int __dp_vs_in_icmp6(struct rte_mbuf *mbuf, int *related)
     struct dp_vs_conn *conn;
     int off, ic6h_off, dir, err;
     lcoreid_t cid, peer_cid;
-    bool drop = false;
     uint8_t nexthdr = ip6h->ip6_nxt;
 
     *related = 0; /* not related until found matching conn */
@@ -847,7 +845,7 @@ static int __dp_vs_in_icmp6(struct rte_mbuf *mbuf, int *related)
     if (!prot)
         return INET_ACCEPT;
 
-    conn = prot->conn_lookup(prot, &dcip6h, mbuf, &dir, true, &drop, &peer_cid);
+    conn = prot->conn_lookup(prot, &dcip6h, mbuf, &dir, true, &peer_cid);
 
     /*
      * The connection is not locally found, however the redirect is found so
@@ -930,7 +928,6 @@ static int __dp_vs_in(void *priv, struct rte_mbuf *mbuf,
     struct dp_vs_proto *prot;
     struct dp_vs_conn *conn;
     int dir, verdict, err, related;
-    bool drop = false;
     lcoreid_t cid, peer_cid;
     eth_type_t etype = mbuf->packet_type; /* FIXME: use other field ? */
     assert(mbuf && state);
@@ -975,12 +972,7 @@ static int __dp_vs_in(void *priv, struct rte_mbuf *mbuf,
     }
 
     /* packet belongs to existing connection ? */
-    conn = prot->conn_lookup(prot, &iph, mbuf, &dir, false, &drop, &peer_cid);
-
-    if (unlikely(drop)) {
-        RTE_LOG(DEBUG, IPVS, "%s: deny ip try to visit.\n", __func__);
-        return INET_DROP;
-    }
+    conn = prot->conn_lookup(prot, &iph, mbuf, &dir, false, &peer_cid);
 
     /*
      * The connection is not locally found, however the redirect is found so
@@ -1186,12 +1178,6 @@ int dp_vs_init(void)
         goto err_serv;
     }
 
-    err = dp_vs_blklst_init();
-    if (err != EDPVS_OK) {
-        RTE_LOG(ERR, IPVS, "fail to init blklst: %s\n", dpvs_strerror(err));
-        goto err_blklst;
-    }
-
     err = dp_vs_stats_init();
     if (err != EDPVS_OK) {
         RTE_LOG(ERR, IPVS, "fail to init stats: %s\n", dpvs_strerror(err));
@@ -1204,14 +1190,20 @@ int dp_vs_init(void)
         goto err_hooks;
     }
 
+    err = acl_init();
+    if (err != EDPVS_OK) {
+        RTE_LOG(ERR, IPVS, "fail to init acl: %s\n", dpvs_strerror(err));
+        goto err_acl;
+    }
+
     RTE_LOG(DEBUG, IPVS, "ipvs inialized.\n");
     return EDPVS_OK;
 
+err_acl:
+    acl_term();
 err_hooks:
     dp_vs_stats_term();
 err_stats:
-    dp_vs_blklst_term();
-err_blklst:
     dp_vs_service_term();
 err_serv:
     dp_vs_sched_term();
@@ -1240,10 +1232,6 @@ int dp_vs_term(void)
     err = dp_vs_stats_term();
     if (err != EDPVS_OK)
         RTE_LOG(ERR, IPVS, "fail to terminate term: %s\n", dpvs_strerror(err));
-
-    err = dp_vs_blklst_term();
-    if (err != EDPVS_OK)
-        RTE_LOG(ERR, IPVS, "fail to terminate blklst: %s\n", dpvs_strerror(err));
 
     err = dp_vs_service_term();
     if (err != EDPVS_OK)

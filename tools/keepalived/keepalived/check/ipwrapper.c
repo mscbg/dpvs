@@ -66,7 +66,7 @@ clear_service_rs(list vs_group, virtual_server_t * vs, list l)
 			log_message(LOG_INFO, "Removing service %s from VS %s"
 						, FMT_RS(rs)
 						, FMT_VS(vs));
-			if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs_group, vs, rs))
+			if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs_group, vs, rs, NULL))
 				return 0;
 			UNSET_ALIVE(rs);
 			if (!vs->omega)
@@ -115,7 +115,7 @@ clear_service_rs(list vs_group, virtual_server_t * vs, list l)
 			/* set alive flag */
 			SET_ALIVE(rs);
 
-			if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs_group, vs, rs)) {
+			if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs_group, vs, rs, NULL)) {
 				UNSET_ALIVE(rs);
 				rs->inhibit = 1;
 				return 0;
@@ -129,6 +129,37 @@ clear_service_rs(list vs_group, virtual_server_t * vs, list l)
 	return 1;
 }
 
+/* Remove acl rule */
+static int
+clear_service_acl(list vs_group, virtual_server_t *vs, list l)
+{
+	element e;
+	acl_server_t *acl;
+	char low_buf[64], high_buf[64];
+
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		acl = ELEMENT_DATA(e);
+		if (acl->af == AF_INET6) {
+			inet_ntop(AF_INET6, &acl->addr_low.in6, low_buf, sizeof(low_buf));
+			inet_ntop(AF_INET6, &acl->addr_high.in6, high_buf, sizeof(high_buf));
+			log_message(LOG_INFO, "Removing acl service %s-%s from VS %s"
+						, low_buf, high_buf, FMT_VS(vs));
+		} else if (acl->af == AF_INET) {
+			inet_ntop(AF_INET, &acl->addr_low.in, low_buf, sizeof(low_buf));
+			inet_ntop(AF_INET, &acl->addr_high.in, high_buf, sizeof(high_buf));
+			log_message(LOG_INFO, "Removing acl service %s-%s from VS %s"
+						, low_buf, high_buf, FMT_VS(vs));
+		} else {
+			return 0;
+		}
+
+		if (!ipvs_cmd(LVS_CMD_DEL_ACL, vs_group, vs, NULL, acl)) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
 /* Remove a virtualserver IPVS rule */
 static int
 clear_service_vs(list vs_group, virtual_server_t * vs)
@@ -137,14 +168,20 @@ clear_service_vs(list vs_group, virtual_server_t * vs)
 	if (!LIST_ISEMPTY(vs->rs)) {
 		if (vs->s_svr) {
 			if (ISALIVE(vs->s_svr))
-				if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs_group, vs, vs->s_svr))
+				if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs_group, vs, vs->s_svr, NULL))
 					return 0;
 		} else if (!clear_service_rs(vs_group, vs, vs->rs))
 			return 0;
 		/* The above will handle Omega case for VS as well. */
 	}
 
-	if (!ipvs_cmd(LVS_CMD_DEL, vs_group, vs, NULL))
+	/* Processing acl queue */
+	if (!LIST_ISEMPTY(vs->acl)) {
+		if (!clear_service_acl(vs_group, vs, vs->acl))
+			return 0;
+	}
+
+	if (!ipvs_cmd(LVS_CMD_DEL, vs_group, vs, NULL, NULL))
 		return 0;
 
 	UNSET_ALIVE(vs);
@@ -189,16 +226,32 @@ init_service_rs(virtual_server_t * vs)
 			continue;
 		}
 		if (!ISALIVE(rs)) {
-			if (!ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, rs))
+			if (!ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, rs, NULL))
 				return 0;
 			else
 				SET_ALIVE(rs);
 		} else if (vs->vsgname) {
 			UNSET_ALIVE(rs);
-			if (!ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, rs))
+			if (!ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, rs, NULL))
 				return 0;
 			SET_ALIVE(rs);
 		}
+	}
+
+	return 1;
+}
+
+/* Set acl IPVS rules */
+static int
+init_service_acl(virtual_server_t *vs)
+{
+	element e;
+	acl_server_t *acl;
+
+	for (e = LIST_HEAD(vs->acl); e; ELEMENT_NEXT(e)) {
+		acl = ELEMENT_DATA(e);
+		if (!ipvs_cmd(LVS_CMD_ADD_ACL, check_data->vs_group, vs, NULL, acl))
+			return 0;
 	}
 
 	return 1;
@@ -210,7 +263,7 @@ init_service_vs(virtual_server_t * vs)
 {
 	/* Init the VS root */
 	if (!ISALIVE(vs) || vs->vsgname) {
-		if (!ipvs_cmd(LVS_CMD_ADD, check_data->vs_group, vs, NULL))
+		if (!ipvs_cmd(LVS_CMD_ADD, check_data->vs_group, vs, NULL, NULL))
 			return 0;
 		else
 			SET_ALIVE(vs);
@@ -220,21 +273,21 @@ init_service_vs(virtual_server_t * vs)
 	if (vs->local_addr_gname &&
         (vs->loadbalancing_kind == IP_VS_CONN_F_FULLNAT ||
          vs->loadbalancing_kind == IP_VS_CONN_F_SNAT)) {
-		if (!ipvs_cmd(LVS_CMD_ADD_LADDR, check_data->vs_group, vs, NULL))
+		if (!ipvs_cmd(LVS_CMD_ADD_LADDR, check_data->vs_group, vs, NULL, NULL))
 			return 0; 
 	}
     
-    /*Set blacklist ip address */
-    if (vs->blklst_addr_gname) {
-        if (!ipvs_cmd(LVS_CMD_ADD_BLKLST, check_data->vs_group, vs, NULL))
-            return 0;
-    }
-        
 	/* Processing real server queue */
 	if (!LIST_ISEMPTY(vs->rs)) {
 		if (vs->alpha && ! vs->reloaded)
 			vs->quorum_state = DOWN;
 		if (!init_service_rs(vs))
+			return 0;
+	}
+
+	/* Processing acl server */
+	if (!LIST_ISEMPTY(vs->acl)) {
+		if (!init_service_acl(vs))
 			return 0;
 	}
 
@@ -322,7 +375,7 @@ perform_quorum_state(virtual_server_t *vs, int add)
 			continue;
 		if (add)
 			rs->alive = 0;
-		ipvs_cmd(add?LVS_CMD_ADD_DEST:LVS_CMD_DEL_DEST, check_data->vs_group, vs, rs);
+		ipvs_cmd(add?LVS_CMD_ADD_DEST:LVS_CMD_DEL_DEST, check_data->vs_group, vs, rs, NULL);
 		rs->alive = 1;
 	}
 }
@@ -349,7 +402,7 @@ update_quorum_state(virtual_server_t * vs)
 					    , FMT_RS(vs->s_svr)
 					    , FMT_VS(vs));
 
-			ipvs_cmd(LVS_CMD_DEL_DEST, check_data->vs_group, vs, vs->s_svr);
+			ipvs_cmd(LVS_CMD_DEL_DEST, check_data->vs_group, vs, vs->s_svr, NULL);
 			vs->s_svr->alive = 0;
 
 			/* Adding back alive real servers */
@@ -394,7 +447,7 @@ update_quorum_state(virtual_server_t * vs)
 					    , FMT_VS(vs));
 
 			/* the sorry server is now up in the pool, we flag it alive */
-			ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, vs->s_svr);
+			ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, vs->s_svr, NULL);
 			vs->s_svr->alive = 1;
 
 			/* Remove remaining alive real servers */
@@ -425,7 +478,7 @@ perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 				    , FMT_VS(vs));
 		/* Add only if we have quorum or no sorry server */
 		if (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)) {
-			if (ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, rs) != IPVS_SUCCESS) {
+			if (ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, rs, NULL) != IPVS_SUCCESS) {
 				log_message(LOG_INFO, "LVS cmd add dest fail!");
 				return false;
 			}
@@ -456,7 +509,7 @@ perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 		 * Remove only if we have quorum or no sorry server
 		 */
 		if (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)) {
-			if (ipvs_cmd(LVS_CMD_DEL_DEST, check_data->vs_group, vs, rs) != IPVS_SUCCESS) {
+			if (ipvs_cmd(LVS_CMD_DEL_DEST, check_data->vs_group, vs, rs, NULL) != IPVS_SUCCESS) {
 				log_message(LOG_INFO, "LVS cmd del dest fail!");
 				return false;
 			}
@@ -499,7 +552,7 @@ update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs)
 		 */
 		if (rs->set && ISALIVE(rs) &&
 		    (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)))
-			ipvs_cmd(LVS_CMD_EDIT_DEST, check_data->vs_group, vs, rs);
+			ipvs_cmd(LVS_CMD_EDIT_DEST, check_data->vs_group, vs, rs, NULL);
 		update_quorum_state(vs);
 	}
 }
@@ -748,6 +801,53 @@ get_rs_list(virtual_server_t * vs)
 	return NULL;
 }
 
+static bool
+acl_equal(acl_server_t *a1, acl_server_t *a2)
+{
+	return ((a1->af == a2->af) &&
+		(a1->deny == a2->deny) &&
+		inet_addr_equal(a1->af, &a1->addr_low, &a2->addr_low) &&
+		inet_addr_equal(a1->af, &a1->addr_high, &a2->addr_high));
+}
+
+static int
+acl_exist(acl_server_t *old_acl, list l)
+{
+	element e;
+	acl_server_t *acl;
+
+	if (LIST_ISEMPTY(l))
+		return 0;
+
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		acl = ELEMENT_DATA(e);
+		if (acl_equal(acl, old_acl)) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static list
+get_acl_list(virtual_server_t *vs)
+{
+	element e;
+	list l = check_data->vs;
+	virtual_server_t *vsvr;
+
+	if (LIST_ISEMPTY(l))
+		return NULL;
+
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vsvr = ELEMENT_DATA(e);
+		if (VS_ISEQ(vs, vsvr))
+			return vsvr->acl;
+	}
+
+	return NULL;
+}
+
 /* Clear the diff rs of the old vs */
 static int
 clear_diff_rs(list old_vs_group, virtual_server_t * old_vs)
@@ -776,6 +876,33 @@ clear_diff_rs(list old_vs_group, virtual_server_t * old_vs)
 	}
 	int ret = clear_service_rs (old_vs_group, old_vs, rs_to_remove);
 	free_list (rs_to_remove);
+
+	return ret;
+}
+
+/* clear the diff acl of the old vs */
+static int
+clear_diff_acl(list old_vs_group, virtual_server_t *old_vs)
+{
+	element e;
+	list l = old_vs->acl;
+	list new = get_acl_list(old_vs);
+	acl_server_t *acl;
+
+	/* If old vs didn't own acl then nothing return */
+	if (LIST_ISEMPTY(l))
+		return 1;
+
+	/* remove acl from old vs */
+	list acl_to_remove = alloc_list(NULL, NULL);
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		acl = ELEMENT_DATA(e);
+		if (!acl_exist(acl, new)) {
+			list_add(acl_to_remove, acl);
+		}
+	}
+	int ret = clear_service_acl(old_vs_group, old_vs, acl_to_remove);
+	free_list(acl_to_remove);
 
 	return ret;
 }
@@ -849,73 +976,6 @@ clear_diff_laddr(virtual_server_t * old_vs)
 	return 1;
 }
 
-/* Check if a blacklist address entry is in list */
-static int
-blklst_entry_exist(blklst_addr_entry *blklst_entry, list l)
-{
-        element e;
-        blklst_addr_entry *entry;
-
-        for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-                entry = ELEMENT_DATA(e);
-                if (sockstorage_equal(&entry->addr, &blklst_entry->addr) &&
-                                        entry->range == blklst_entry->range)
-                        return 1;
-        }
-        return 0;
-}
-
-/* Clear the diff blklst address entry of the old vs */
-static int
-clear_diff_blklst_entry(list old, list new, virtual_server_t * old_vs)
-{
-        element e;
-        blklst_addr_entry *blklst_entry;
-
-        for (e = LIST_HEAD(old); e; ELEMENT_NEXT(e)) {
-                blklst_entry = ELEMENT_DATA(e);
-                if (!blklst_entry_exist(blklst_entry, new)) {
-                        log_message(LOG_INFO, "VS [%s-%d] in blacklist address group %s no longer exist\n"
-                                            , inet_sockaddrtos(&blklst_entry->addr)
-                                            , blklst_entry->range
-                                            , old_vs->blklst_addr_gname);
-
-                        if (!ipvs_blklst_remove_entry(old_vs, blklst_entry))
-                                return 0;
-                }
-        }
-
-        return 1;
-}
-
-/* Clear the diff blacklist address of the old vs */
-static int
-clear_diff_blklst(virtual_server_t * old_vs)
-{
-        blklst_addr_group *old;
-        blklst_addr_group *new;
-
-        /*
-         *  If old vs  didn't own blacklist address group, 
-         * then do nothing and return 
-         */
-        if (!old_vs->blklst_addr_gname)
-                return 1;
-
-        /* Fetch blacklist address group */
-        old = ipvs_get_blklst_group_by_name(old_vs->blklst_addr_gname,
-                                                        old_check_data->blklst_group);
-        new = ipvs_get_blklst_group_by_name(old_vs->blklst_addr_gname,
-                                                        check_data->blklst_group);
-
-        if (!clear_diff_blklst_entry(old->addr_ip, new->addr_ip, old_vs))
-                return 0;
-        if (!clear_diff_blklst_entry(old->range, new->range, old_vs))
-                return 0;
-
-        return 1;
-}
-
 /* When reloading configuration, remove negative diff entries */
 int
 clear_diff_services(void)
@@ -963,14 +1023,14 @@ clear_diff_services(void)
 					if (!ipvs_cmd(LVS_CMD_DEL_DEST
 						      , check_data->vs_group
 						      , vs
-						      , vs->s_svr))
+						      , vs->s_svr, NULL))
 						return 0;
 			/* perform local address diff */
 			if (!clear_diff_laddr(vs))
 				return 0;
-                        /* perform blacklist address diff */
-                        if (!clear_diff_blklst(vs))
-                                return 0;
+			/* perform acl diff */
+			if (!clear_diff_acl(old_check_data->vs_group, vs))
+				return 0;
 		}
 	}
 

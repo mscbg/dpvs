@@ -424,7 +424,7 @@ int msg_destroy(struct dpvs_msg **pmsg)
             mc_queue_unhash(mcq);
             dpvs_mempool_put(msg_pool, mcq);
         } else {
-            RTE_LOG(WARNING, MSGMGR, "%s:msg@%p, deleting multicast msg not found in queue:"
+            RTE_LOG(DEBUG, MSGMGR, "%s:msg@%p, deleting multicast msg not found in queue:"
                     "type=%d, seq=%d\n", __func__, msg, msg->type, msg->seq);
         }
     }

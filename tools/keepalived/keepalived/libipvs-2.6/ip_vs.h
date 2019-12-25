@@ -15,8 +15,8 @@
 #include "conf/route6.h"
 #include "conf/inetaddr.h"
 #include "conf/laddr.h"
-#include "conf/blklst.h"
 #include "conf/conn.h"
+#include "conf/acl.h"
 #include "ip_tunnel.h"
 #include "ipvs/service.h"
 #include "ipvs/dest.h"
@@ -54,6 +54,8 @@
 #define IP_VS_SVC_F_SIP_HASH	0x0100		/* sip hash target */
 #define IP_VS_SVC_F_QID_HASH	0x0200		/* quic cid hash target */
 #define IP_VS_SVC_F_MATCH	0x0400		/* snat match */
+#define IP_VS_SVC_F_SRC_DENY	0x1000		/* src deny flag */
+#define IP_VS_SVC_F_DST_DENY	0x2000          /* dst deny flag */
 
 #define IP_VS_SVC_F_SCHED_SH_FALLBACK	IP_VS_SVC_F_SCHED1 /* SH fallback */
 #define IP_VS_SVC_F_SCHED_SH_PORT	IP_VS_SVC_F_SCHED2 /* SH use port */
@@ -89,11 +91,13 @@
 #define IP_VS_SO_SET_ZERO	(IP_VS_BASE_CTL+15)
 #define IP_VS_SO_SET_ADDLADDR	(IP_VS_BASE_CTL+16)
 #define IP_VS_SO_SET_DELLADDR	(IP_VS_BASE_CTL+17)
-#define IP_VS_SO_SET_ADDBLKLST  (IP_VS_BASE_CTL+18)
-#define IP_VS_SO_SET_DELBLKLST  (IP_VS_BASE_CTL+19)
-#define IP_VS_SO_SET_ADDTUNNEL	 (IP_VS_BASE_CTL+20)
-#define IP_VS_SO_SET_DELTUNNEL	 (IP_VS_BASE_CTL+21)
-#define IP_VS_SO_SET_MAX	IP_VS_SO_SET_DELTUNNEL
+#define IP_VS_SO_SET_ADDBLKLST	(IP_VS_BASE_CTL+18)
+#define IP_VS_SO_SET_DELBLKLST	(IP_VS_BASE_CTL+19)
+#define IP_VS_SO_SET_ADDTUNNEL	(IP_VS_BASE_CTL+20)
+#define IP_VS_SO_SET_DELTUNNEL	(IP_VS_BASE_CTL+21)
+#define IP_VS_SO_SET_ADDACL	(IP_VS_BASE_CTL+22)
+#define IP_VS_SO_SET_DELACL	(IP_VS_BASE_CTL+23)
+#define IP_VS_SO_SET_MAX	IP_VS_SO_SET_DELACL
 
 #define IP_VS_SO_GET_VERSION	IP_VS_BASE_CTL
 #define IP_VS_SO_GET_INFO	(IP_VS_BASE_CTL+1)
@@ -236,12 +240,6 @@ struct ip_vs_laddr_user {
 	u_int16_t		af;
 	union nf_inet_addr	addr;
 	char			ifname[IFNAMSIZ];
-};
-
-struct ip_vs_blklst_user {
-	__be32                  __addr_v4;      /* ipv4 address */
-	u_int16_t               af;
-	union nf_inet_addr      addr;
 };
 
 struct ip_vs_tunnel_user {
